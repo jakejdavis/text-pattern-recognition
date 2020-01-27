@@ -1,0 +1,6 @@
+corpora
+probabilities_n[0-9]*.json
+*.ps1
+__pycache__
+.vscode
+.DS_Store
