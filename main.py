@@ -4,6 +4,7 @@ import argparse
 import ngram
 import lstm_ngram
 import lstm_pure
+from classes import Implementation
 
 
 parser = argparse.ArgumentParser()
@@ -30,11 +31,11 @@ def main():
     # Instantiate the respective class from user input
     if option == "ngram":
         # Pass the value of ngram_n_input as a class parameter
-        implementation = ngram.NGramImplementation(n = ngram_n_input)
+        implementation: Implementation = ngram.NGramImplementation(n = ngram_n_input)
     elif option == "ngram with lstm":
-        implementation = lstm_ngram.LSTMNgramImplementation(n = ngram_n_input)
+        implementation: Implementation = lstm_ngram.LSTMNgramImplementation(n = ngram_n_input)
     elif option == "lstm with lstm":
-        implementation = lstm_pure.LSTMLSTMImplementation(n = ngram_n_input, corpora_path = corpora_path)
+        implementation: Implementation = lstm_pure.LSTMLSTMImplementation(n = ngram_n_input, corpora_path = corpora_path)
 
     # Run init function for implementations with ANNs
     if option != "ngram":

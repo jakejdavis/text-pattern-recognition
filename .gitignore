@@ -4,3 +4,5 @@ probabilities_n[0-9]*.json
 __pycache__
 .vscode
 .DS_Store
+venv
+.idea

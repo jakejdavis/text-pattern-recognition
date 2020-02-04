@@ -1,5 +1,4 @@
 import classes
-import stanfordnlp
 import ujson
 import string
 import os
@@ -16,9 +15,10 @@ import pickle
 import itertools
 
 upos_1h_labels = None
-UPOS_TAGS = ["CC","CD","DT","EX","FW","IN","JJ","JJR","JJS","LS","MD","NN",
-    "NNS","NNP","NNPS","PDT","POS","PRP","PRP$","RB","RBR","RBS","RP","SYM",
-    "TO","UH","VB","VBD","VBG","VBN","VBP","VBZ","WDT","WP","WP$","WRB","$"]
+UPOS_TAGS = ["CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN",
+             "NNS", "NNP", "NNPS", "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM",
+             "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", "$"]
+
 
 def get_upos_1h_labels():
     global upos_1h_labels
@@ -26,8 +26,9 @@ def get_upos_1h_labels():
         return upos_1h_labels
     else:
         upos_1h = pd.get_dummies(UPOS_TAGS).values
-        upos_1h_labels = {UPOS_TAGS[i]:v for (i, v) in enumerate(upos_1h)}
+        upos_1h_labels = {UPOS_TAGS[i]: v for (i, v) in enumerate(upos_1h)}
         return upos_1h_labels
+
 
 class TagPredictorDataGenerator(Sequence):
     def __init__(self, filename, n, batch_size=32):
@@ -43,7 +44,7 @@ class TagPredictorDataGenerator(Sequence):
         self.n = n
 
     def __len__(self):
-        return int(np.floor(self.upos_length/3 / self.batch_size))
+        return int(np.floor(self.upos_length / 3 / self.batch_size))
 
     def __getitem__(self, index):
         # Generates batch
@@ -52,7 +53,7 @@ class TagPredictorDataGenerator(Sequence):
 
         i = 0
         # Generate X Y data until full (last item is not zero'd)
-        while np.count_nonzero(X[self.batch_size-1]) == 0:
+        while np.count_nonzero(X[self.batch_size - 1]) == 0:
             x = None
             y = None
             try:
@@ -68,16 +69,18 @@ class TagPredictorDataGenerator(Sequence):
 
     def __data_generation(self):
         x = np.array([
-            self.upos_1h_labels[v] for v in self.upos_tags[self.index:self.index+self.n]
+            self.upos_1h_labels[v] for v in self.upos_tags[self.index:self.index + self.n]
         ])
-        y = np.array([self.upos_1h_labels[self.upos_tags[self.index+self.n]]])
+        y = np.array([self.upos_1h_labels[self.upos_tags[self.index + self.n]]])
 
         return x, y
 
+
 class TagPredictorTrainer(classes.TrainerML):
-    def __init__(self, n, filenames, loss, optimizer):
+    def __init__(self, n, filenames, loss, optimizer, name):
         # filenames keys: dataset, one_hot_labels, tag_model_json, tag_model_weights
-        self.n = n 
+        super().__init__(name)
+        self.n = n
 
         self.filenames = filenames
 
@@ -89,8 +92,8 @@ class TagPredictorTrainer(classes.TrainerML):
     def create_model(self):
         self.model = Sequential()
         print(len(UPOS_TAGS))
-        self.model.add(LSTM(50, input_shape=(self.n, len(UPOS_TAGS)), return_sequences = True))
-        self.model.add(LSTM(100, return_sequences = False))
+        self.model.add(LSTM(50, input_shape=(self.n, len(UPOS_TAGS)), return_sequences=True))
+        self.model.add(LSTM(100, return_sequences=False))
         self.model.add(Dense(len(UPOS_TAGS), activation='softmax'))
 
     def init(self):
@@ -103,7 +106,7 @@ class TagPredictorTrainer(classes.TrainerML):
     def train(self, filename):
         self.write_model()
         print("Training model...")
-        training_generator = TagPredictorDataGenerator(filename+".upos", self.n)
+        training_generator = TagPredictorDataGenerator(filename + ".upos", self.n)
 
         callbacks_list = [classes.ModelSaver(self.filenames["model_weights"])]
 
