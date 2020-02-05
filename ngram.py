@@ -7,7 +7,7 @@ from collections import Counter
 
 import classes
 
-from typing import List, Dict
+from typing import List, Dict, Any, Union
 
 
 def generate_ngrams(words: str, n: int):
@@ -19,8 +19,8 @@ def generate_ngrams(words: str, n: int):
 
 
 class NGramTrainer(classes.Trainer):
-    def __init__(self, n, filename, name):
-        super().__init__(name)
+    def __init__(self, n, filename):
+        super().__init__()
 
         self.n: int = n
         self.ngrams: List[str] = []
@@ -66,7 +66,7 @@ class NGramTrainer(classes.Trainer):
         print("Writing probabilities...")
         self.write_probabilities()
 
-    def load_probabilities(self):
+    def load_probabilities(self) -> bool:
         if os.path.isfile(self.filename):
             with open(self.filename, 'r') as f:
                 print("Decoding json...")
@@ -76,7 +76,7 @@ class NGramTrainer(classes.Trainer):
 
     def write_probabilities(self):
         def merge_probabilities(probabilities_1, probabilities_2):
-            merged_probabilities = {}
+            merged_probabilities: Dict[Any, Union[Counter[Any], Any]] = {}
             print("Probabilities 1 pass...")
             for key, value in tqdm(probabilities_1.items()):
                 if key not in probabilities_2:
@@ -107,8 +107,8 @@ class NGramImplementation(classes.Implementation):
     def __init__(self, n):
         super().__init__()
 
-        self.n = n
-        self.trainer = NGramTrainer(n, f"ngram/probabilities_n{str(n)}.json")
+        self.n: int = n
+        self.trainer: NGramTrainer = NGramTrainer(n, f"ngram/probabilities_n{str(n)}.json")
 
     def init(self):
         if not self.trainer.load_probabilities():
@@ -117,7 +117,7 @@ class NGramImplementation(classes.Implementation):
     def train(self, filename: str):
         self.trainer.train(filename)
 
-    def trial(self):
+    def trial(self, filename):
         while True:
             to_predict: str = input("Text: ")
             if to_predict in self.trainer.probabilities:

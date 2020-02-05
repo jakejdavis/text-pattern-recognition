@@ -3,7 +3,7 @@ import os
 from tensorflow.keras.models import model_from_json, Sequential
 from tensorflow.keras.callbacks import Callback
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 class Implementation(ABC):
@@ -15,28 +15,31 @@ class Implementation(ABC):
         return NotImplementedError
 
     @abstractmethod
-    def trial(self):
+    def trial(self, filename: str):
         return NotImplementedError
-
-
-class Trainer(ABC):
-    def __init__(self, name: str):
-        print(f"Instantiating Trainer {name}")
-        self.name: str = name
 
     @abstractmethod
     def train(self, filename: str):
         return NotImplementedError
 
 
-class TrainerML(Trainer):
-    def __init__(self, name: str):
-        super().__init__(name)
+class Trainer(ABC):
+    @abstractmethod
+    def train(self, filename: str):
+        return NotImplementedError
 
-        self.model: Sequential = None
-        self.filenames: Dict[str, str] = None
-        self.X = None
-        self.Y = None
+
+class TrainerML(Trainer, ABC):
+    def __init__(self, n, filenames, loss, optimizer):
+        super().__init__()
+        self.n: int = n
+
+        self.filenames: Dict[str, str] = filenames
+
+        self.loss: str = loss
+        self.optimizer: str = optimizer
+
+        self.model: Optional[Sequential] = None
 
     def load_model(self):
         loaded: bool = False
@@ -59,6 +62,14 @@ class TrainerML(Trainer):
         with open(self.filenames["model_json"], 'w') as json_file:
             json_file.write(self.model.to_json())
         self.model.save_weights(self.filenames["model_weights"])
+
+    @abstractmethod
+    def create_model(self):
+        return NotImplementedError
+
+    @abstractmethod
+    def init_model(self):
+        return NotImplementedError
 
 
 class ModelSaver(Callback):

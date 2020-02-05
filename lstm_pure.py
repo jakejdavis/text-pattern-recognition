@@ -1,159 +1,36 @@
-import string
+from typing import Dict
+
 from gensim.models import Word2Vec, KeyedVectors
-from gensim.test.utils import get_tmpfile
-import os
-import ujson
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras import Sequential
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.layers import Input, Dense, LSTM, Activation, Embedding
-from tensorflow.keras.utils import Sequence
 from operator import itemgetter
 from tqdm import tqdm
 from sner import POSClient
 
 import classes
 import tag_predictor
+import word_predictor
 import ngram
 
 
-class WordPredictorDataGenerator(Sequence):
-    def __init__(self, words_filename, kv_filename, n, batch_size=32):
-        self.batch_size = batch_size
-        with open(words_filename, 'r') as f:
-            json = ujson.load(f)
-            self.texts_length = json["len"]
-            self.texts = json["texts"]
-        self.word_vectors = KeyedVectors.load(kv_filename, mmap='r')
-
-        self.index = 0
-        self.n = n
-
-    def __len__(self):
-        return int(np.floor(self.texts_length / 3 / self.batch_size))
-
-    def __getitem__(self, index):
-        # Generates batch
-        X = np.zeros([self.batch_size, self.n, self.word_vectors.vector_size])
-        Y = np.zeros([self.batch_size, self.word_vectors.vector_size])
-
-        i = 0
-        # Generate X Y data until full (last item is not zero'd)
-        while np.count_nonzero(X[self.batch_size - 1]) == 0:
-            x = None
-            y = None
-            try:
-                x, y = self.__data_generation()
-                X[i] = x
-                Y[i] = y
-                i += 1
-            except Exception as e:
-                print(e)
-            self.index += 1
-        return X, Y
-
-    def __data_generation(self):
-        x = np.array([
-            self.word_vectors[v] for v in self.texts[self.index:self.index + self.n]
-        ])
-        y = np.array([self.word_vectors[self.texts[self.index + self.n]]])
-
-        return x, y
-
-
-class WordPredictorTrainer(classes.TrainerML):
-    def __init__(self, n, filenames, loss, optimizer, name: str):
-        super().__init__(name)
-
-        self.n = n
-
-        self.filenames = filenames
-
-        self.loss = loss
-        self.optimizer = optimizer
-
-        self.X = []
-        self.Y = []
-
-        self.word_vectors = None
-
-    def generate_dataset(self, corpora):
-        print("Training Word2Vec model...")
-        model = Word2Vec([corpora], size=100, window=5, min_count=1, workers=4)
-        self.word_vectors = model.wv
-
-        print("Saving word vectors")
-        os.makedirs(os.path.dirname(self.filenames["word_vectors"]), exist_ok=True)
-        self.word_vectors.save(self.filenames["word_vectors"])
-
-        print("Generating X Y dataset")
-        for i, text in enumerate(corpora[:-(self.n + 1)]):
-            self.X.append(corpora[i:i + self.n])
-            self.Y.append(corpora[i + self.n])
-
-    def encode_x_y(self):
-        self.X = np.array([
-            (self.word_vectors[text] for text in x_i) for x_i in self.X
-        ])
-        self.Y = np.array([self.word_vectors[y_i] for y_i in self.Y])
-
-    def create_model(self):
-        word_vectors = KeyedVectors.load(self.filenames["word_vectors"], mmap='r')
-        self.model = Sequential()
-        self.model.add(LSTM(100, input_shape=(3, word_vectors.vector_size), return_sequences=True))
-        self.model.add(LSTM(100))
-        self.model.add(Dense(word_vectors.vector_size, activation='tanh'))
-
-    def init(self):
-        if not self.load_model():
-            print("Loading model failed... creating model instead")
-            self.create_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
-        print("Model compiled!")
-
-    def check_dataset(self):
-        return self.X != [] and self.Y != []
-
-    def load_dataset(self):
-        if os.path.isfile(self.filenames["dataset"]):
-            print("Loading dataset items...")
-            with open(self.filenames["dataset"], 'r') as f:
-                print("Decoding json...")
-                json_list = ujson.load(f)
-                self.X, self.Y = np.array(json_list[0]), np.array(json_list[1])
-
-            self.word_vectors = KeyedVectors.load(self.filenames["word_vectors"], mmap='r')
-            return True
-        return False
-
-    def train(self, filename):
-        print("Training model...")
-        training_generator = WordPredictorDataGenerator(filename + ".uts", filename + ".wv", self.n)
-
-        callbacks_list = [classes.ModelSaver(self.filenames["model_weights"])]
-
-        self.model.fit_generator(generator=training_generator, callbacks=callbacks_list)
-
-        print("Writing model to {}".format(self.filenames["model_json"]))
-        self.write_model()
 
 
 class LSTMLSTMImplementation(classes.Implementation):
+
     def __init__(self, n, corpora_path):
         super().__init__()
 
         self.n = n
 
-        wp_prefix = f"word_predictor/{n}/"
-        word_predictor_filenames = {
+        wp_prefix: str = f"word_predictor/{n}/"
+        word_predictor_filenames: Dict[str, str] = {
             "dataset": wp_prefix + "dataset.json",
             "word_vectors": corpora_path + ".wv",
             "model_json": wp_prefix + "model_json.json",
             "model_weights": wp_prefix + "model_weights.h5"
         }
 
-        self.word_predictor_trainer = WordPredictorTrainer(n, word_predictor_filenames, "mse", "adam")
+        self.word_predictor_trainer: word_predictor.WordPredictorTrainer = \
+            word_predictor.WordPredictorTrainer(n, word_predictor_filenames, "mse", "adam")
 
         tp_prefix = f"tag_predictor/{n}/"
         tag_predictor_filenames = {
@@ -163,12 +40,12 @@ class LSTMLSTMImplementation(classes.Implementation):
             "model_weights": tp_prefix + "model_weights.h5"
         }
 
-        self.tag_predictor_trainer = tag_predictor.TagPredictorTrainer(n, tag_predictor_filenames,
-                                                                       "categorical_crossentropy", "adam")
+        self.tag_predictor_trainer: tag_predictor.TagPredictorTrainer = \
+            tag_predictor.TagPredictorTrainer(n, tag_predictor_filenames, "categorical_crossentropy", "adam")
 
     def init(self, corpora):
-        self.word_predictor_trainer.init(corpora)
-        self.tag_predictor_trainer.init()
+        self.word_predictor_trainer.init()
+        self.tag_predictor_trainer.init_model()
 
     def predict(self, text, tagger, upos_1h_labels, word_vectors):
         upos_texts = [(word[0], word[1]) for word in tagger.tag(text)]
@@ -241,7 +118,7 @@ class LSTMLSTMImplementation(classes.Implementation):
             combined_predictions = self.predict(test_trial, tagger, upos_1h_labels, word_vectors)
             if combined_predictions:
                 predicted_word, predicted_probability = \
-                sorted(combined_predictions.items(), key=itemgetter(1), reverse=True)[0]
+                    sorted(combined_predictions.items(), key=itemgetter(1), reverse=True)[0]
 
                 if predicted_word == next_word:
                     correct += 1

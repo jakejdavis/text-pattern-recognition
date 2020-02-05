@@ -32,7 +32,7 @@ class LSTMNgramImplementation(classes.Implementation):
             print(f"Training ngram {str(self.n)}")
             self.ngram_trainer.train(filename)
 
-        self.tag_predictor_trainer.init()
+        self.tag_predictor_trainer.init_model()
 
     def predict(self, text, tagger, upos_1h_labels):
         upos_texts = [(word[0], word[1]) for word in tagger.tag(text)]

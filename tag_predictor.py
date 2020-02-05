@@ -77,17 +77,8 @@ class TagPredictorDataGenerator(Sequence):
 
 
 class TagPredictorTrainer(classes.TrainerML):
-    def __init__(self, n, filenames, loss, optimizer, name):
-        # filenames keys: dataset, one_hot_labels, tag_model_json, tag_model_weights
-        super().__init__(name)
-        self.n = n
-
-        self.filenames = filenames
-
-        self.loss = loss
-        self.optimizer = optimizer
-
-        self.model = None
+    def __init__(self, n, filenames, loss, optimizer):
+        super().__init__(n, filenames, loss, optimizer)
 
     def create_model(self):
         self.model = Sequential()
@@ -96,7 +87,7 @@ class TagPredictorTrainer(classes.TrainerML):
         self.model.add(LSTM(100, return_sequences=False))
         self.model.add(Dense(len(UPOS_TAGS), activation='softmax'))
 
-    def init(self):
+    def init_model(self):
         if not self.load_model():
             print("Loading model failed... creating model instead")
             self.create_model()
