@@ -1,28 +1,21 @@
-import classes
 import ujson
-import string
-import os
 import pandas as pd
 import numpy as np
-import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.layers import Input, Dense, LSTM, Activation
+from tensorflow.keras.layers import Dense, LSTM
 from tensorflow.keras.utils import Sequence
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tqdm import tqdm
-import pickle
-import itertools
 
-upos_1h_labels = None
-UPOS_TAGS = ["CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN",
+import classes
+
+UPOS_TAGS = ("CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN",
              "NNS", "NNP", "NNPS", "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM",
-             "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", "$"]
+             "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", "$")
+upos_1h_labels = None
 
 
-def get_upos_1h_labels():
+def get_upos_1h_labels() -> object:
     global upos_1h_labels
-    if not upos_1h_labels is None:
+    if upos_1h_labels is not None:
         return upos_1h_labels
     else:
         upos_1h = pd.get_dummies(UPOS_TAGS).values
@@ -85,13 +78,13 @@ class TagPredictorTrainer(classes.TrainerML):
         print(len(UPOS_TAGS))
         self.model.add(LSTM(50, input_shape=(self.n, len(UPOS_TAGS)), return_sequences=True))
         self.model.add(LSTM(100, return_sequences=False))
-        self.model.add(Dense(len(UPOS_TAGS), activation='softmax'))
+        self.model.add(Dense(len(UPOS_TAGS), activation="softmax"))
 
     def init_model(self):
         if not self.load_model():
             print("Loading model failed... creating model instead")
             self.create_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
+        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=["accuracy"])
         print("Model compiled!")
 
     def train(self, filename):

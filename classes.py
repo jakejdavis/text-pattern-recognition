@@ -30,7 +30,14 @@ class Trainer(ABC):
 
 
 class TrainerML(Trainer, ABC):
-    def __init__(self, n, filenames, loss, optimizer):
+    def __init__(self, n: int, filenames: Dict[str, str], loss: str, optimizer: str):
+        """
+
+        @param n: constant of n-grams
+        @param filenames: filenames to use
+        @param loss: loss function for model to use
+        @param optimizer: optimizer for model to use
+        """
         super().__init__()
         self.n: int = n
 
@@ -41,7 +48,10 @@ class TrainerML(Trainer, ABC):
 
         self.model: Optional[Sequential] = None
 
-    def load_model(self):
+    def load_model(self) -> bool:
+        """Loads model structure and weights
+        @return: bool if load successful
+        """
         loaded: bool = False
         if os.path.isfile(self.filenames["model_json"]):
             
@@ -58,6 +68,8 @@ class TrainerML(Trainer, ABC):
         return loaded
     
     def write_model(self):
+        """Saves model structure and weights
+        """
         os.makedirs(os.path.dirname(self.filenames["model_json"]), exist_ok=True)        
         with open(self.filenames["model_json"], 'w') as json_file:
             json_file.write(self.model.to_json())
@@ -73,13 +85,19 @@ class TrainerML(Trainer, ABC):
 
 
 class ModelSaver(Callback):
-    def __init__(self, filename):
+    def __init__(self, filename: str):
         super().__init__()
-        self.filename = filename
+        self.filename: str = filename
 
-    def on_train_batch_end(self, batch, logs=None):
+    def on_train_batch_end(self, batch: int, logs: object = None):
+        """
+
+        @param batch: index of batch
+        @param logs:
+        """
         if logs is None:
             logs = {}
 
+        # Save on every 1000th batch
         if batch % 1000 == 0:
             self.model.save_weights(self.filename.format(batch))

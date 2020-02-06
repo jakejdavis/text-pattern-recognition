@@ -13,7 +13,7 @@ class LSTMNgramImplementation(classes.Implementation):
     def __init__(self, n):
         super().__init__()
 
-        self.n = n
+        self.n: int = n
 
         prefix = f"tag_predictor/{n}/"
         tag_predictor_filenames = {

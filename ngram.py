@@ -10,7 +10,13 @@ import classes
 from typing import List, Dict, Any, Union
 
 
-def generate_ngrams(words: str, n: int):
+def generate_ngrams(words: str, n: int) -> List[str]:
+    """
+
+    @param words: 
+    @param n: 
+    @return: list of strings of n words
+    """
     words_list: List[str] = words.split(' ')
     return [
         ' '.join(words_list[i:i + n])
