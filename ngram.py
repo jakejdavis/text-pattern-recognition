@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Union
 import string
 import ujson
 from tqdm import tqdm
@@ -6,8 +7,6 @@ import os
 from collections import Counter
 
 import classes
-
-from typing import List, Dict, Any, Union
 
 
 def generate_ngrams(words: str, n: int) -> List[str]:
@@ -48,11 +47,16 @@ class NGramTrainer(classes.Trainer):
             else:
                 totals[ngram][next_word] += 1
 
-        probabilities: Dict[str, Dict[str, float]] = {}
-        for total_key, total_dict in tqdm(totals.items()):
-            total_total = sum(total_dict.values())
-            probabilities[total_key] = {key: value / total_total for key, value in total_dict.items()}
-        return probabilities
+        self.probabilities: Dict[str, Dict[str, float]] = {
+            total_key: {
+                key: value / sum(total_dict.values()) 
+                for key, value in total_dict.items()
+            }
+            for total_key, total_dict in tqdm(totals.items())
+        }
+        #for total_key, total_dict in tqdm(totals.items()):
+            #total_total = sum(total_dict.values())
+           # self.probabilities[total_key] = {key: value / total_total for key, value in total_dict.items()}
 
     def train(self, filename: str):
         # Remove punctuation from corpora
@@ -67,7 +71,7 @@ class NGramTrainer(classes.Trainer):
         print(f"Generated {len(self.ngrams)} n-grams")
 
         print("Calculating probabilities...")
-        self.probabilities = self.calculate_probabilities()
+        self.calculate_probabilities()
 
         print("Writing probabilities...")
         self.write_probabilities()
@@ -80,7 +84,6 @@ class NGramTrainer(classes.Trainer):
                 return True
         return False
 
-    def write_probabilities(self):
         def merge_probabilities(probabilities_1, probabilities_2):
             merged_probabilities: Dict[Any, Union[Counter[Any], Any]] = {}
             print("Probabilities 1 pass...")
@@ -99,6 +102,7 @@ class NGramTrainer(classes.Trainer):
                     merged_probabilities[key] = value
             return merged_probabilities
 
+    def write_probabilities(self):
         if os.path.isfile(self.filename):
             print("Merging probabilities...")
             probabilities_to_write = merge_probabilities(ujson.load(open(self.filename, 'r')), self.probabilities)
@@ -116,9 +120,8 @@ class NGramImplementation(classes.Implementation):
         self.n: int = n
         self.trainer: NGramTrainer = NGramTrainer(n, f"ngram/probabilities_n{str(n)}.json")
 
-    def init(self):
-        if not self.trainer.load_probabilities():
-            return False
+    def init(self, filename):
+        return self.trainer.load_probabilities()
 
     def train(self, filename: str):
         self.trainer.train(filename)
@@ -133,22 +136,24 @@ class NGramImplementation(classes.Implementation):
                                                                     reverse=True)[0:5]:
                     print(f"Predicted '{predicted_word}' with {predicted_probability * 100}% confidence")
 
-    def test(self, corpora):
+    def test(self, filename: str):
+        # Remove punctuation from corpora
+        corpora: str = (open(filename, 'r', encoding="utf-8").read().translate(
+            str.maketrans('', '', string.punctuation))
+        ).lower()
+
         ngrams: List[str] = generate_ngrams(corpora, self.n)
 
         correct: int = 0
         incorrect: int = 0
 
-        for i, test_trial in tqdm(enumerate(ngrams[0:len(ngrams) - 2])):
+        for i, test_trial in enumerate(tqdm(ngrams[0:len(ngrams) - 2])):
             next_word: str = ngrams[i + 1].split(' ')[-1]
             if test_trial in self.trainer.probabilities:
                 predicted_probabilities = self.trainer.probabilities[test_trial]
 
                 predicted_word: str = ""
-                predicted_probability: float = 0
-                predicted_word, predicted_probability = sorted(
-                    predicted_probabilities.items(), key=itemgetter(1), reverse=True
-                )[0]
+                predicted_word = max(predicted_probabilities, key=predicted_probabilities.get)
 
                 if predicted_word == next_word:
                     correct += 1

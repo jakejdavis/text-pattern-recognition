@@ -26,13 +26,11 @@ def main():
         #  Pass the value of ngram_n_input as a class parameter
         implementation: Implementation = ngram.NGramImplementation(n=ngram_n_input)
     elif option == "ngram with lstm":
-        implementation: Implementation = lstm_ngram.LSTMNgramImplementation(n=ngram_n_input)
+        implementation: Implementation = lstm_ngram.LSTMNGramImplementation(n=ngram_n_input)
     elif option == "lstm with lstm":
         implementation: Implementation = lstm_pure.LSTMLSTMImplementation(n=ngram_n_input, corpora_path=corpora_path)
 
-    # Run init function for implementations with ANNs
-    if option != "ngram":
-        implementation.init_model(corpora_path)
+    implementation.init(corpora_path)
 
     # Run the respective procedure from user input
     if procedure == "train":

@@ -1,9 +1,8 @@
+from typing import Dict, Optional
 from abc import ABC, abstractmethod
 import os
 from tensorflow.keras.models import model_from_json, Sequential
 from tensorflow.keras.callbacks import Callback
-
-from typing import List, Dict, Optional
 
 
 class Implementation(ABC):
@@ -12,6 +11,10 @@ class Implementation(ABC):
 
     @abstractmethod
     def test(self, filename: str):
+        """
+        @param filename: path of file to test implementation upon
+        @return (correct, incorrect):
+        """
         return NotImplementedError
 
     @abstractmethod
@@ -75,12 +78,19 @@ class TrainerML(Trainer, ABC):
             json_file.write(self.model.to_json())
         self.model.save_weights(self.filenames["model_weights"])
 
-    @abstractmethod
-    def create_model(self):
-        return NotImplementedError
+    def init_model(self):
+        """load_model with create_model fallback and compile model
+        """
+        if not self.load_model():
+            print("Loading model failed... creating model instead")
+            self.create_model()
+        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=["accuracy"])
+        print("Model compiled!")
 
     @abstractmethod
-    def init_model(self):
+    def create_model(self):
+        """Add layers to self.model
+        """
         return NotImplementedError
 
 
@@ -91,7 +101,6 @@ class ModelSaver(Callback):
 
     def on_train_batch_end(self, batch: int, logs: object = None):
         """
-
         @param batch: index of batch
         @param logs:
         """

@@ -9,6 +9,9 @@ import classes
 
 
 class WordPredictorDataGenerator(Sequence):
+    """
+    Provides class to sequentially provide X Y data during training of Word Predictor Model
+    """
     def __init__(self, words_filename, kv_filename, n, batch_size=32):
         self.batch_size = batch_size
         with open(words_filename, 'r') as f:
@@ -59,16 +62,8 @@ class WordPredictorTrainer(classes.TrainerML):
     def create_model(self):
         word_vectors = KeyedVectors.load(self.filenames["word_vectors"], mmap='r')
         self.model = Sequential()
-        self.model.add(LSTM(100, input_shape=(3, word_vectors.vector_size), return_sequences=True))
-        self.model.add(LSTM(100))
+        self.model.add(LSTM(100, input_shape=(3, word_vectors.vector_size)))
         self.model.add(Dense(word_vectors.vector_size, activation='tanh'))
-
-    def init_model(self):
-        if not self.load_model():
-            print("Loading model failed... creating model instead")
-            self.create_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
-        print("Model compiled!")
 
     def train(self, filename):
         print("Training model...")
@@ -79,5 +74,4 @@ class WordPredictorTrainer(classes.TrainerML):
         self.model.fit_generator(generator=training_generator, callbacks=callbacks_list)
 
         print("Writing model to {}".format(self.filenames["model_json"]))
-        self.write_model()
         self.write_model()

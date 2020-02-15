@@ -1,3 +1,4 @@
+from typing import Dict, List
 import ujson
 import pandas as pd
 import numpy as np
@@ -7,36 +8,48 @@ from tensorflow.keras.utils import Sequence
 
 import classes
 
+# Define constant tuple of UPOS tags
 UPOS_TAGS = ("CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN",
              "NNS", "NNP", "NNPS", "PDT", "POS", "PRP", "PRP$", "RB", "RBR", "RBS", "RP", "SYM",
              "TO", "UH", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", "$")
 upos_1h_labels = None
 
 
-def get_upos_1h_labels() -> object:
+def get_upos_1h_labels() -> Dict[str, List[int]]:
+    """
+    Create one-hot encoded upos tags if global variable not set
+    @return: dict of one-hot encoded values keyed by upos tags
+    """
     global upos_1h_labels
     if upos_1h_labels is not None:
         return upos_1h_labels
     else:
+        # Use pandas library to generate upos one-hort encoded values
         upos_1h = pd.get_dummies(UPOS_TAGS).values
-        upos_1h_labels = {UPOS_TAGS[i]: v for (i, v) in enumerate(upos_1h)}
+        upos_1h_labels: Dict[str, List[int]] = {UPOS_TAGS[i]: v for (i, v) in enumerate(upos_1h)}
         return upos_1h_labels
 
 
 class TagPredictorDataGenerator(Sequence):
-    def __init__(self, filename, n, batch_size=32):
-        self.batch_size = batch_size
+    """
+    Provides class to sequentially provide X Y data during training of Tag Predictor Model
+    """
+    def __init__(self, filename: str, n: int, batch_size: int = 32):
+        self.batch_size: int = batch_size
         with open(filename, 'r') as f:
             json = ujson.load(f)
-            self.upos_length = json["len"]
-            self.upos_tags = json["upos"]
-        self.upos_1h_labels = get_upos_1h_labels()
-        self.upos_shape = np.array(list(self.upos_1h_labels.values()))[0].shape
+            self.upos_length: int = json["len"]
+            self.upos_tags: List[str] = json["upos"]
 
-        self.index = 0
-        self.n = n
+        self.upos_1h_labels: Dict[str, List[int]] = get_upos_1h_labels()
+        self.upos_shape = np.array(list(
+            self.upos_1h_labels.values()
+        ))[0].shape
 
-    def __len__(self):
+        self.index: int = 0
+        self.n: int = n
+
+    def __len__(self) -> int:
         return int(np.floor(self.upos_length / 3 / self.batch_size))
 
     def __getitem__(self, index):
@@ -75,17 +88,8 @@ class TagPredictorTrainer(classes.TrainerML):
 
     def create_model(self):
         self.model = Sequential()
-        print(len(UPOS_TAGS))
-        self.model.add(LSTM(50, input_shape=(self.n, len(UPOS_TAGS)), return_sequences=True))
-        self.model.add(LSTM(100, return_sequences=False))
+        self.model.add(LSTM(50, input_shape=(self.n, len(UPOS_TAGS))))
         self.model.add(Dense(len(UPOS_TAGS), activation="softmax"))
-
-    def init_model(self):
-        if not self.load_model():
-            print("Loading model failed... creating model instead")
-            self.create_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=["accuracy"])
-        print("Model compiled!")
 
     def train(self, filename):
         self.write_model()
